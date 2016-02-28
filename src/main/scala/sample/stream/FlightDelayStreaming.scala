@@ -26,11 +26,13 @@ object FlightDelayStreaming {
         val C: FlowShape[FlightEvent, DelayRecord] = builder.add(flightEventToDelayRecord)
         val D: UniformFanOutShape[DelayRecord, DelayRecord] = builder.add(Broadcast[DelayRecord](2))
         val E: Inlet[Any] = builder.add(Sink.ignore).in
+        val F: FlowShape[DelayRecord, (Int, Int)] = builder.add(countByCarrier)
+        val G: Inlet[Any] = builder.add(Sink.ignore).in
 
         import GraphDSL.Implicits._
 
         A ~> B ~> flightEventToDelayRecord ~> D ~> E
-                                              D ~> countByCarrier
+                                              D ~> F ~> G
         ClosedShape
     }).run()
     // @formatter:on
@@ -57,13 +59,14 @@ object FlightDelayStreaming {
 
   val countByCarrier =
     Flow[DelayRecord]
-      .groupBy(30, _.uniqueCarrier).fold((0, 0)) {
+      .groupBy(30, _.uniqueCarrier)
+      .fold((0, 0)) {
         (x: (Int, Int), y: DelayRecord) =>
           println(s"Delays for carrier ${y.uniqueCarrier}: ${Try(x._2 / x._1).getOrElse(0)} average mins, ${x._1} delayed flights") // TODO emit as events for another graph, perhaps event storage + SSE
           val count = x._1 + 1
           val totalMins = x._2 + Try(y.arrDelayMins.toInt).getOrElse(0)
           (count, totalMins)
-      }.to(Sink.ignore)
+      }.mergeSubstreams
 }
 
 case class FlightEvent(
