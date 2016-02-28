@@ -4,18 +4,11 @@ name := """flight-delay-streaming-scala"""
 
 version := "1.1"
 
-scalaVersion := "2.11.6"
+scalaVersion := "2.11.7"
 
 libraryDependencies ++= Seq(
-  "com.typesafe.akka" %% "akka-stream-experimental" % "1.0-RC4"
+  "com.typesafe.akka" % "akka-stream_2.11" % "2.4.2",
+  "com.typesafe.akka" % "akka-actor_2.11" % "2.4.2"
 )
 
-scalariformSettings
 
-ScalariformKeys.preferences := ScalariformKeys.preferences.value
-  .setPreference(AlignSingleLineCaseStatements, true)
-  .setPreference(AlignSingleLineCaseStatements.MaxArrowIndent, 100)
-  .setPreference(DoubleIndentClassDeclaration, true)
-  .setPreference(PreserveDanglingCloseParenthesis, true)
-
-fork in run := true
