@@ -19,20 +19,28 @@ object FlightDelayStreaming {
   def main(args: Array[String]): Unit = {
 
     // @formatter:off
-    val g = RunnableGraph.fromGraph(GraphDSL.create() { implicit builder =>
+    val g = RunnableGraph.fromGraph(GraphDSL.create() {
+      implicit builder =>
+        import GraphDSL.Implicits._
 
+        // Source
         val A: Outlet[String] = builder.add(Source.fromIterator(() => flightDelayLines)).out
+
+        // Flows
         val B: FlowShape[String, FlightEvent] = builder.add(csvToFlightEvent)
         val C: FlowShape[FlightEvent, DelayRecord] = builder.add(flightEventToDelayRecord)
         val D: UniformFanOutShape[DelayRecord, DelayRecord] = builder.add(Broadcast[DelayRecord](2))
-        val E: Inlet[Any] = builder.add(Sink.ignore).in
         val F: FlowShape[DelayRecord, (Int, Int)] = builder.add(countByCarrier)
+
+        // Sinks
+        val E: Inlet[Any] = builder.add(Sink.ignore).in
         val G: Inlet[Any] = builder.add(Sink.ignore).in
 
-        import GraphDSL.Implicits._
 
+        // Graph
         A ~> B ~> flightEventToDelayRecord ~> D ~> E
                                               D ~> F ~> G
+
         ClosedShape
     }).run()
     // @formatter:on
