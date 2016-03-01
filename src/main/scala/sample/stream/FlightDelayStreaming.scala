@@ -7,7 +7,7 @@ object FlightDelayStreaming {
   import akka.stream._
   import akka.stream.scaladsl._
   import scala.concurrent.Future
-  import scala.util.{ Failure, Success, Try }
+  import scala.util.Try
   import scala.concurrent.ExecutionContext.Implicits._
 
   // implicit actor system
@@ -38,8 +38,8 @@ object FlightDelayStreaming {
 
 
         // Graph
-        A ~> B ~> flightEventToDelayRecord ~> D ~> E
-                                              D ~> F ~> G
+        A ~> B ~> C ~> D ~> E
+                       D ~> F ~> G
 
         ClosedShape
     }).run()
