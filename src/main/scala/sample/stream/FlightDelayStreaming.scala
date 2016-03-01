@@ -28,13 +28,13 @@ object FlightDelayStreaming {
 
         // Flows
         val B: FlowShape[String, FlightEvent] = builder.add(csvToFlightEvent)
-        val C: FlowShape[FlightEvent, DelayRecord] = builder.add(flightEventToDelayRecord)
-        val D: UniformFanOutShape[DelayRecord, DelayRecord] = builder.add(Broadcast[DelayRecord](2))
-        val F: FlowShape[DelayRecord, (Int, Int)] = builder.add(countByCarrier)
+        val C: FlowShape[FlightEvent, FlightDelayRecord] = builder.add(flightEventToDelayRecord)
+        val D: UniformFanOutShape[FlightDelayRecord, FlightDelayRecord] = builder.add(Broadcast[FlightDelayRecord](2))
+        val F: FlowShape[FlightDelayRecord, (String, Int, Int)] = builder.add(countByCarrier)
 
         // Sinks
         val E: Inlet[Any] = builder.add(Sink.ignore).in
-        val G: Inlet[Any] = builder.add(Sink.ignore).in
+        val G: Inlet[Any] = builder.add(Sink.foreach(averageSink)).in
 
         // Graph
         A ~> B ~> C ~> D ~> E
@@ -44,6 +44,13 @@ object FlightDelayStreaming {
     }).run()
     // @formatter:on
 
+  }
+
+  def averageSink[A](a: A) {
+    a match {
+      case (a: String, b: Int, c: Int) => println(s"Delays for carrier ${a}: ${Try(c / b).getOrElse(0)} average mins, ${b} delayed flights")
+      case x => println("no idea what " + x + "is!")
+    }
   }
 
   val flightDelayLines: Iterator[String] = io.Source.fromFile("src/main/resources/2008.csv", "utf-8").getLines()
@@ -61,18 +68,18 @@ object FlightDelayStreaming {
     Flow[FlightEvent]
       .filter(r => Try(r.arrDelayMins.toInt).getOrElse(-1) > 0) // convert arrival delays to ints, filter out non delays
       .mapAsyncUnordered(parallelism = 2) { r =>
-        Future(new DelayRecord(r.year, r.month, r.dayOfMonth, r.flightNum, r.uniqueCarrier, r.arrDelayMins))
-      } // output a DelayRecord
+        Future(new FlightDelayRecord(r.year, r.month, r.dayOfMonth, r.flightNum, r.uniqueCarrier, r.arrDelayMins))
+      } // output a FlightDelayRecord
 
   val countByCarrier =
-    Flow[DelayRecord]
+    Flow[FlightDelayRecord]
       .groupBy(30, _.uniqueCarrier)
-      .fold((0, 0)) {
-        (x: (Int, Int), y: DelayRecord) =>
-          println(s"Delays for carrier ${y.uniqueCarrier}: ${Try(x._2 / x._1).getOrElse(0)} average mins, ${x._1} delayed flights") // TODO emit as events for another graph, perhaps event storage + SSE
-          val count = x._1 + 1
-          val totalMins = x._2 + Try(y.arrDelayMins.toInt).getOrElse(0)
-          (count, totalMins)
+      .fold(("", 0, 0)) {
+        (x: (String, Int, Int), y: FlightDelayRecord) =>
+          //println(s"Delays for carrier ${y.uniqueCarrier}: ${Try(x._3 / x._2).getOrElse(0)} average mins, ${x._2} delayed flights") // TODO emit as events for another graph, perhaps event storage + SSE
+          val count = x._2 + 1
+          val totalMins = x._3 + Try(y.arrDelayMins.toInt).getOrElse(0)
+          (y.uniqueCarrier, count, totalMins)
       }.mergeSubstreams
 }
 
@@ -107,7 +114,7 @@ case class FlightEvent(
   securityDelayMins: String,
   lateAircraftDelayMins: String)
 
-case class DelayRecord(
+case class FlightDelayRecord(
     year: String,
     month: String,
     dayOfMonth: String,
