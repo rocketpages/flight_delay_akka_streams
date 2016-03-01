@@ -36,7 +36,6 @@ object FlightDelayStreaming {
         val E: Inlet[Any] = builder.add(Sink.ignore).in
         val G: Inlet[Any] = builder.add(Sink.ignore).in
 
-
         // Graph
         A ~> B ~> C ~> D ~> E
                        D ~> F ~> G
