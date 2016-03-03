@@ -3,6 +3,8 @@
 An Akka Streams application that crunches flight data from a CSV file and emits average delays for each airline carrier.
 Akka Streams will ensure that you're never late for an important business trip again!
 
+Recently updated for Akka 2.4.2.
+
 1. Convert each line from a String into a FlightEvent
 2. Filter out non-delayed flights from the stream
 3. Broadcast the stream across two distinct flows — one to capture raw events, another to capture aggregate flight delay data
